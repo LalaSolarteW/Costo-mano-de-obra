@@ -293,7 +293,8 @@ def actualizar_prov_cli(categoria, servicio, cliente, start_date, end_date):
     return figproveedores
 
 
-# Gráfico Pareto de cantidades pagadas a cada proveedor
+# PARETO DE PROVEEDORES QUE MÁS FACTURAN
+
 dcc.DatePickerRange(
     start_date=df_costos_fechacom["Fecha"].min(),
     end_date=df_costos_fechacom["Fecha"].max(),
@@ -338,7 +339,12 @@ def actualizar_val_prov (servicio, start_date, end_date):
         (df_filtrado_prov["Fecha"] <= end_date)
     ]
     
-    df_pareto_valorpro = df_filtrado_prov.groupby('OS-Proveedor').agg({
+    df_pareto_valorp = df_filtrado_prov.groupby(['OP-D', 'Proceso Producción', 'OS-Proveedor', 'Producto']).agg({
+        'OS-Cantidad': 'mean',
+        'Valor total OS': 'mean'
+    })
+    
+    df_pareto_valorpro = df_pareto_valorp.groupby('OS-Proveedor').agg({
         'OS-Cantidad': 'sum',
         'Valor total OS': 'sum'
     }).reset_index()
@@ -426,7 +432,8 @@ def actualizar_val_prov (servicio, start_date, end_date):
     return fig_valor_pro
     
     
-# Grafico pareto de unidades fabricadas por proveedor
+# PARETO DE PROVEEDORES QUE MÁS OS REALIZAN
+
 dcc.DatePickerRange(
     start_date=df_costos_fechacom["Fecha"].min(),
     end_date=df_costos_fechacom["Fecha"].max(),
@@ -471,8 +478,12 @@ def actualizar_vol_prov (servicio, start_date, end_date):
         (df_filtrado_pro["Fecha"] <= end_date)
     ]
     
+    df_pareto_v = df_filtrado_pro.groupby(['OP-D', 'Proceso Producción', 'OS-Proveedor', 'Producto']).agg({
+        'OS-Cantidad': 'mean',
+        'Valor total OS': 'mean'
+    })
     
-    df_pareto_volu = df_filtrado_pro.groupby('OS-Proveedor').agg({
+    df_pareto_volu = df_pareto_v.groupby('OS-Proveedor').agg({
         'OS-Cantidad': 'sum',
         'Valor total OS': 'sum'
     }).reset_index()
@@ -563,7 +574,8 @@ def actualizar_vol_prov (servicio, start_date, end_date):
     )
     return fig_vol
 
-# Gráfico Pareto de proveedores a los que se les paga sobreprecio
+# PARETO DE PROVEEDORES A LOS QUE SE LES PAGA SOBREPRECIO
+
 dcc.DatePickerRange(
     start_date=df_costos_fechacom["Fecha"].min(),
     end_date=df_costos_fechacom["Fecha"].max(),
@@ -692,7 +704,8 @@ def actualizar_sob_prov (start_date, end_date):
     )
     return fig_ahorro
 
-# Gráfico Pareto de total de prendas
+# PARETO TOTAL DE PRENDAS
+
 dcc.DatePickerRange(
     start_date=df_costos_fechacom["Fecha"].min(),
     end_date=df_costos_fechacom["Fecha"].max(),
@@ -820,6 +833,14 @@ def actualizar_categoria (start_date, end_date):
     )
     return fig_volumenc
 
+# PRENDAS CON MAYOR COSTO EN PROCESO DE PRODUCCIÓN
+
+dcc.DatePickerRange(
+    start_date=df_costos_fechacom["Fecha"].min(),
+    end_date=df_costos_fechacom["Fecha"].max(),
+    display_format="YYYY-MM-DD",
+    id="filtro-fecha-prod"
+),
 
 # Filtro de categoría
 dcc.Dropdown(
@@ -836,17 +857,24 @@ dcc.Dropdown(
     multi=True,
     placeholder="Selecciona el proceso de produccion",
     id="filtro-servicio-prod"
-)
+),
 
 dcc.Graph(id="grafico-producto")
 @app.callback(
     Output("grafico-producto", "figure"),
     Input("filtro-categoria-prod", "value"),
-    Input("filtro-servicio-prod", "value")
+    Input("filtro-servicio-prod", "value"),
+    Input("filtro-fecha-prod", "start_date"),
+    Input("filtro-fecha-prod", "end_date")
 )
 
-def actualizarr(categoria, servicio):
-
+def actualizarr(categoria, servicio, start_date, end_date):
+    
+    if start_date is None or end_date is None:
+        raise PreventUpdate
+    
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
            
     df_filtrado2 = df_costos_fechacom.copy()
     
@@ -857,10 +885,21 @@ def actualizarr(categoria, servicio):
     if servicio:
         df_filtrado2 = df_filtrado2[df_filtrado2["Proceso Producción"].isin(servicio)]
         
-        
-    top_10_prod = df_filtrado2.groupby(['Producto', 'OS-Proveedor', 'OP-D', 'Cliente']).agg({
+    df_filtrado2 = df_filtrado2[
+        (df_filtrado2["Fecha"] >= start_date) &
+        (df_filtrado2["Fecha"] <= end_date)
+    ]
+    
+    dfagrup = df_filtrado2.groupby(['Producto', 'OS-Proveedor', 'OP-D', 'Proceso Producción', 'Cliente']).agg({
+        'Valor total OS': 'mean',
+        'OS-Cantidad':'mean'
+    }).reset_index()
+          
+    top_10_prod = dfagrup.groupby(['Producto', 'OP-D']).agg({
         'Valor total OS': 'sum',
-        'OS-Cantidad':'sum'
+        'OS-Cantidad': 'sum',
+        'Cliente': lambda x: ', '.join(x.unique()),
+        'OS-Proveedor': lambda x: ', '.join(x.unique())
     }).reset_index()
 
     filtro = top_10_prod.sort_values(by='Valor total OS', ascending=False).head(15)
@@ -871,22 +910,18 @@ def actualizarr(categoria, servicio):
         filtro, 
         x='Producto_OP', 
         y='Valor total OS',
-        color='Producto'
+        color='Producto',
+        category_orders={"Producto_OP": filtro['Producto_OP'].tolist()},
+        hover_data={
+            'OS-Proveedor': True,
+            'Cliente': True,
+            'OP-D': True,
+            'OS-Cantidad': True,
+            'Producto_OP': False,  # para no repetirlo
+            'Producto': False      # opcional
+        }
     )
 
-    figbarrr.update_traces(
-        textposition='outside',
-        customdata=filtro[['OS-Proveedor', 'Cliente', 'OP-D', 'OS-Cantidad']], 
-        hovertemplate=( 
-            "<b>Producto: %{x}</b><br>" +
-            "Valor total OS: %{y:,.0f}<br><br>" +
-            "Proveedor: %{customdata[0]}<br>" +
-            "Cliente: %{customdata[1]}<br>" +
-            "OP: %{customdata[2]}<br>" +
-            "Cantidad: %{customdata[3]}<br>" +
-            "<extra></extra>"
-        ),
-    ),
     
     figbarrr.update_layout(
         # 1. Fondo transparente
@@ -1489,6 +1524,13 @@ app.layout = html.Div([
                     multi=True,
                     placeholder="Selecciona el proceso de produccion",
                     id="filtro-servicio-prod"
+                ),
+                
+                dcc.DatePickerRange(
+                    start_date=df_costos_fechacom["Fecha"].min(),
+                    end_date=df_costos_fechacom["Fecha"].max(),
+                    display_format="YYYY-MM-DD",
+                    id="filtro-fecha-prod"
                 )], style={"margin-bottom": "20px"}),
 
                 dcc.Graph(id="grafico-producto"),
