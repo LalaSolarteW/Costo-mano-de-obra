@@ -1,0 +1,256 @@
+@import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;600;700&display=swap');
+
+body {
+    font-family: 'Libre Franklin', sans-serif;
+    background-color: #CEDFD7;
+    margin: 40px;
+}
+
+/* HEADER */
+.header {
+    position: relative;
+    padding: 20px 0;
+    border-bottom: 2px solid #ccc;
+}
+
+.title {
+    font-size: 40px;
+    font-weight: 800;
+    color: #5B46DF;
+    text-align: center;
+}
+
+/* CARDS */
+.row {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    margin-top: 30px;
+}
+
+.card {
+    flex: 1;
+    min-width: 400px;
+    background-color: #CEDFD7;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+}
+
+.card h3 {
+    text-align: center;
+    font-size: 25px;
+    color: #5B46DF;
+    font-weight: bold;
+}
+
+.card p {
+    margin-top: 15px;
+    font-size: 16px;
+    color: #7166B0;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* KPIs */
+.kpi {
+    text-align: center;
+}
+
+.kpi-value {
+    font-size: 40px;
+    margin: 10px 0;
+}
+
+/* INFO BOX */
+.info-box {
+    margin-top: 30px;
+}
+
+.info-box h3 {
+    font-size: 25px;
+    color: #5B46DF;
+}
+
+.info-box p {
+    font-size: 18px;
+    color: #7166B0;
+    text-align: justify;
+}
+
+.info-box ul {
+    padding-left: 20px;
+    margin: 0;
+}
+
+.info-box li {
+    font-size: 20px;
+    color: #555;
+    margin-bottom: 5px;
+}
+
+.main-nav {
+    margin-bottom: 30px;
+}
+
+.tab {
+    font-family: 'Libre Franklin', sans-serif;
+}
+
+/* CONTENEDOR */
+.custom-tabs {
+    background-color: #261C3F;
+    padding: 10px;
+    border-radius: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+/* TABS NORMALES */
+.custom-tab {
+    background-color: #5c4eb3;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+/* TAB ACTIVO */
+.custom-tab--selected {
+    background-color: #261C3F !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+/* CONTENEDOR */
+.sub-tabs {
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* BOTONES */
+.sub-tab {
+    background-color: #5c4eb3;
+    color: #fff;
+    font-family: 'Libre Franklin', sans-serif;
+    font-weight: bold;
+    padding: 10px 20px;
+    border-radius: 10px 10px 0 0;
+    cursor: pointer;
+}
+
+/* HOVER */
+.sub-tab:hover {
+    background-color: #d0d0d0;
+}
+
+/* ACTIVO */
+.sub-tab--selected {
+    background-color: #261C3F !important;
+    color: white !important;
+    font-family: 'Libre Franklin', sans-serif;
+    font-weight: bold;
+}
+
+.logo {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 70px;
+}
+
+.logo.left {
+    left: 10px;
+}
+
+.logo.right {
+    right: 10px;
+}
+
+.dash-dropdown, 
+.dash-dropdown-content {
+    background-color: #CEDFD7 !important;
+    border-radius: 10px;
+    border: 2px solid #7166B0 !important;
+    font-family: 'Libre Franklin', sans-serif !important;
+}
+
+/* Texto dentro */
+.dash-dropdown * {
+    color: #7166B0 !important;
+}
+
+.dash-range-slider-input {
+    display: none !important;
+}
+
+/* Ocultar inputs del RangeSlider */
+.dash-range-slider-input {
+    display: none !important;
+}
+
+/* Barra base */
+.dash-slider-root [data-orientation="horizontal"] {
+    height: 6px;
+    background-color: #dcdcdc;
+    border-radius: 5px;
+}
+
+/* Barra activa */
+.dash-slider-root [data-state="active"] {
+    background-color: #7166B0 !important;
+}
+/* Barra base */
+.dash-slider-root [data-orientation="horizontal"] {
+    height: 6px;
+    background-color: #dcdcdc;
+    border-radius: 5px;
+}
+
+/* Barra activa */
+.dash-slider-root [data-state="active"] {
+    background-color: #7166B0 !important;
+}
+
+.dash-slider-root [role="slider"] {
+    width: 16px;
+    height: 16px;
+    background-color: #7166B0 !important;
+    border-radius: 50%;
+    border: 2px solid #7166B0;
+}
+
+.dash-slider-root .rc-slider-mark {
+    display: none !important;
+}
+
+/* Contenedor */
+.dash-datepicker-input-wrapper,
+.dash-datepicker-content {
+    background-color: #CEDFD7 !important;
+    border: 2px solid #7166B0 !important;
+    border-radius: 10px !important;
+    font-family: 'Libre Franklin', sans-serif !important;
+}
+.dash-datepicker-input-wrapper input {
+    background-color: #CEDFD7 !important;
+    color: #7166B0 !important;
+    border: none !important;
+    text-align: center;
+    font-family: 'Libre Franklin', sans-serif !important;
+}
+.dash-datepicker-input-wrapper span {
+    color: #7166B0 !important;
+}
+.dash-datepicker-input-wrapper input:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(113, 102, 176, 0.2);
+}
+.CalendarDay__selected,
+.CalendarDay__selected_span {
+    background: #7166B0 !important;
+    border: 2px solid #7166B0 !important;
+    color: white !important;
+}
