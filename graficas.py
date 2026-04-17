@@ -13,13 +13,13 @@ import unicodedata
 import plotly.graph_objects as go
 
 # Primer Excel utilizado para todo el análisis inicial
-df_costos = pd.read_excel('df_final.xlsx')
+df_costos = pd.read_excel('df_finall.xlsx')
 
 # Segundo excel con categorías organizadas y fechas desde 2023
-df_costos_fechacom = pd.read_excel('df_final1.xlsx')
+df_costos_fechacom = pd.read_excel('dffinn.xlsx')
 
 # Tercer excel con fechas desde 2023 y valor completo de la op pero sin categorías
-df_costos_valorop = pd.read_excel('df_fin.xlsx')
+df_costos_valorop = pd.read_excel('dffinn.xlsx')
 
 
 # %%
@@ -53,9 +53,9 @@ def clasificar(Producto):
     # Si no encontramos coincidencia, asignamos 'Otros'
     return 'Otros'
 
-df_costos['Categoría'] = df_costos['Producto'].apply(clasificar)   
+#df_costos['Categoría'] = df_costos['Producto'].apply(clasificar)   
 #print(df_costos['Categoría'].value_counts())
-df_costos['Proceso Producción'].unique()
+#df_costos['Proceso Producción'].unique()
 
 paleta_molt_oscura = ["#29104A", "#4A1B8C", "#0F0530", "#3C1053", "#5C2B92"]
 paleta_contraste_oscuro = ["#3C1053", "#003F5C", "#005F4B", "#6B2D3A", "#2F4F4F"]
@@ -63,7 +63,6 @@ paleta_textil = ["#5B46DF", "#4E6E58", "#A0522D", "#607B8B", "#8B4513"]
 
 # %% [markdown]
 # ## KPI
-
 # %%
 ahorro_total = abs(df_costos.loc[df_costos['Diferencia'] < 0, 'Diferencia'].sum())
 perdida_total = df_costos.loc[df_costos['Diferencia'] > 0, 'Diferencia'].sum()
@@ -73,34 +72,8 @@ ahorro_total_fmt = f"{ahorro_total:,.0f}"
 perdida_total_fmt = f"{perdida_total:,.0f}"
 balance_total_fmt = f"{balance_total:,.0f}"
 
-
-# %% [markdown]
-# ## Atípicos
-
-# %%
-# Sacamos un top10 de las categorías que más cuestan en general
-top_10_cats = (
-    df_costos_fechacom.groupby('Categoría')['Valor total OS']
-    .sum()
-    .nlargest(10)
-    .index
-)
-df_atipicos = df_costos_fechacom[df_costos_fechacom['Categoría'].isin(top_10_cats)]
-
-fig_box = px.box(
-    df_atipicos, 
-    x='Categoría', 
-    y='Diferencia valor unitario', 
-    color='Categoría',   
-    points='outliers',          
-    hover_data=['Num-OP', 'OS-Proveedor', 'Cliente'], # Info extra al pasar el mouse
-    labels={'OS-Valor Unitario': 'Costo Unitario ($)'}
-)
-
-
 # %% [markdown]
 # ## Pareto
-
 # %% [markdown]
 # ### Pareto de proveedor
 
@@ -214,7 +187,6 @@ fig_ahorro.update_yaxes(
 
 # %% [markdown]
 # ### Pareto de Cliente
-
 # %%
 # Filtro de fecha para tomar exactamente un año 
 df_filtrado_cli = df_costos_valorop[df_costos_valorop['Fecha'] >= '2025-03-17'].copy()
@@ -519,92 +491,6 @@ fig_cat_ahorro.update_yaxes(
     linecolor='gray'
 )
 
-
-# %% [markdown]
-# ## Variación de costos que manejan los proveedores en las mismas categorías para diferentes clientes
-
-# %%
-top_10_proveedores = df_costos_fechacom.groupby('OS-Proveedor')['Valor total OS'].sum().nlargest(10).index
-
-# Filtramos por el top 10 de categorías y proveedores
-df_prov_cli = df_costos_fechacom[
-    (df_costos_fechacom['Categoría'].isin(top_10_cats)) & 
-    (df_costos_fechacom['OS-Proveedor'].isin(top_10_proveedores))
-].copy()
-
-# Agrupamos incluyendo al CLIENTE
-df_plot_prov_cli = df_prov_cli.groupby(['OS-Proveedor', 'Categoría', 'Cliente']).agg({
-    'OS-Valor Unitario': 'mean',
-    'OS-Cantidad': 'sum',
-    'Valor total OS': 'sum'
-}).reset_index()
-
-lista_clientes = sorted(df_plot_prov_cli['Cliente'].unique())
-lista_proveedores = sorted(df_plot_prov_cli['OS-Proveedor'].unique())
-
-fig_prov_cli = go.Figure()
-
-# 3. Creamos los rastros (Traces)
-# Necesitamos crear un rastro por cada PROVEEDOR para que el barmode='group' funcione
-# Pero lo haremos dinámico para que el filtro de cliente cambie los datos
-for prov in lista_proveedores:
-    df_temp = df_plot_prov_cli[df_plot_prov_cli['OS-Proveedor'] == prov]
-    
-    # Iniciamos mostrando el promedio General (Todos los clientes)
-    # Para eso, recalculamos el promedio por categoría ignorando el cliente inicialmente
-    df_gen = df_temp.groupby('Categoría').agg({'OS-Valor Unitario': 'mean'}).reset_index()
-    
-    fig_prov_cli.add_trace(go.Bar(
-        x=df_gen['Categoría'],
-        y=df_gen['OS-Valor Unitario'],
-        name=prov,
-        visible=True
-    ))
-
-
-botones_cliente = []
-botones_cliente.append(dict(
-    label="Todos los Clientes",
-    method="update",
-    args=[{"y": [df_plot_prov_cli[df_plot_prov_cli['OS-Proveedor'] == p].groupby('Categoría')['OS-Valor Unitario'].mean().values for p in lista_proveedores],
-           "x": [df_plot_prov_cli[df_plot_prov_cli['OS-Proveedor'] == p].groupby('Categoría')['Categoría'].unique().tolist() for p in lista_proveedores]},
-          {"title": "Costo Promedio por Proveedor: Todos los Clientes"}]
-))
-
-# Opciones por cada Cliente específico
-for cli in lista_clientes:
-    # Preparamos los datos Y para cada proveedor basándonos en ese cliente
-    y_por_proveedor = []
-    x_por_proveedor = []
-    
-    for prov in lista_proveedores:
-        df_sub = df_plot_prov_cli[(df_plot_prov_cli['Cliente'] == cli) & (df_plot_prov_cli['OS-Proveedor'] == prov)]
-        y_por_proveedor.append(df_sub['OS-Valor Unitario'].values)
-        x_por_proveedor.append(df_sub['Categoría'].values)
-
-    botones_cliente.append(dict(
-        label=cli,
-        method="update",
-        args=[{"y": y_por_proveedor, "x": x_por_proveedor},
-              {"title": f"Costo por Proveedor para: {cli}"}]
-    ))
-
-fig_prov_cli.update_layout(
-    updatemenus=[dict(
-        buttons=botones_cliente,
-        direction="down",
-        showactive=True,
-        x=0, y=1.2
-    )],
-    barmode='group',
-    xaxis_title="Categoría",
-    yaxis_title="Costo Unitario Promedio ($)",
-    template='plotly_white',
-    height=650,
-    legend_title_text='Proveedor'
-)
-
-
 # %% [markdown]
 # ## Gráfico impacto total por servicio
 
@@ -746,7 +632,7 @@ df_costos.columns = df_costos.columns.str.strip()
 
 df_costos['Proceso Producción'] = pd.Categorical(
     df_costos['Proceso Producción'],
-    categories=sorted(df_costos['Proceso Producción'].unique()),
+    categories=sorted(df_costos['Proceso Producción'].astype(str).unique()),
     ordered=True
 )
 
@@ -756,9 +642,9 @@ figboxplot = px.box(df_costos,
              points='outliers',
              notched=True,
              color='Proceso Producción',
-             hover_data = ['OP Det', 'Nombre del Comercial', 'Costeo_Producto'],
+             hover_data = ['OP Det', 'Nombre del Comercial', 'OS-Cantidad', 'OS-Valor Unitario', 'costo_antes_iva'],
              color_discrete_sequence=paleta_textil,
-             category_orders={'Proceso Producción': sorted(df_costos['Proceso Producción'].unique())})
+             category_orders={'Proceso Producción': sorted(df_costos['Proceso Producción'].astype(str).unique())})
 
 figboxplot.update_layout(
     # 1. Fondo transparente
@@ -806,9 +692,9 @@ figboxtotal = px.box(df_costos,
              points='outliers',
              notched=True,
              color='Proceso Producción',
-             hover_data = ['OP Det', 'Nombre del Comercial', 'Costeo_Producto', 'OS-Valor Unitario', 'costo_antes_iva' ],
+             hover_data = ['OP Det', 'Nombre del Comercial', 'OS-Cantidad', 'OS-Valor Unitario', 'costo_antes_iva' ],
              color_discrete_sequence=paleta_textil,
-             category_orders={'Proceso Producción': sorted(df_costos['Proceso Producción'].unique())})
+             category_orders={'Proceso Producción': sorted(df_costos['Proceso Producción'].astype(str).unique())})
 
 figboxtotal.update_layout(
     # 1. Fondo transparente
@@ -850,35 +736,47 @@ figboxtotal.update_yaxes(
 
 # %%
 # Utilizamos el promedio de la diferencia para identificar las 5 categorías con mayor impacto económico.
-top5_categorias = (df_costos.groupby('Categoría')['Diferencia valor unitario']
-                   .mean()
-                   .sort_values(ascending=False)
-                   .head(5)
-                   .index.tolist()
-                   )
+# --- PASO A: Seleccionar los 5 que más dinero mueven (Impacto Real) ---
 
+# --- PASO 1: Top 5 basado en el impacto absoluto total ---
+top5_categorias = (
+    df_costos.groupby('Categoría')['Diferencia']
+    .apply(lambda x: x.abs().sum()) 
+    .sort_values(ascending=False)
+    .head(5)
+    .index.tolist()
+)
 
 df_filtrado = df_costos[df_costos['Categoría'].isin(top5_categorias)].copy()
 
-df_filtrado['variacion_netadif'] = df_filtrado.groupby(['Categoría', 'Proceso Producción'])['Diferencia valor unitario'].transform(lambda x: x - x.mean())
+# --- PASO 2: Gráfica con VALORES REALES ---
+fig_dif = px.box(
+    df_filtrado, 
+    x='Categoría', 
+    y='Diferencia',
+    color='Proceso Producción',
+    points='outliers',
+    hover_data=['OP Det', 'Nombre del Comercial', 'OS-Cantidad', 'Valor total OS', 'valor total op'],
+    labels={
+        "Nombre del Comercial": "Comercial",
+        "Valor total OS": "Valor total pagado (OS)",
+        "valor total op": "Valor total costeado",
+        "OS-Cantidad": "Cantidad OS",
+        "Diferencia": "Diferencia ($)"
+    },
+    color_discrete_sequence=paleta_textil
+)
 
-# --- PASO 4: Gráfica de "Impacto Económico" ---
-fig_dif = px.box(df_filtrado, 
-             x='Categoría', 
-             y='variacion_netadif', 
-             color='Proceso Producción',
-             points='outliers',
-             hover_data = ['OP Det', 'Nombre del Comercial', 'Costeo_Producto', 'OS-Valor Unitario', 'costo_antes_iva' ],
-             color_discrete_sequence=paleta_textil)
 
-# Línea de referencia en cero
+# La línea en cero ahora sí significa "Costo Exacto según Presupuesto"
 fig_dif.add_hline(y=0, line_dash="dash", line_color="blue")
 
 fig_dif.update_layout(
     boxmode='group',
-    yaxis_title="Desviación del Costo ($)",
+    yaxis_title="Diferencia de Costo Real ($)",
     xaxis_title="Top 5 Categorías con Mayor Impacto Económico"
 )
+
 
 fig_dif.update_layout(
     # 1. Fondo transparente
@@ -956,7 +854,7 @@ fig_total.update_layout(
     # 2. Tipografía Times New Roman
     font=dict(
         family="Times New Roman, Times, serif",
-        size=12,
+        size=8,
         color="#333333" # Color de letra gris muy oscuro (casi negro)
     ),
     
@@ -1028,7 +926,7 @@ figcomercial.update_traces(
         "Comercial: %{y}<br>" +
         "Proceso: %{x}<br><br>" +
         "Diferencia: %{z:,.0f}<br>" +
-        #"Media: %{customdata[0]:,.0f}<br>" +
+        "Media: %{customdata[0]:,.0f}<br>" +
         "Mediana: %{customdata[1]:,.0f}<br>" +
         "<extra></extra>"
 )
@@ -1087,30 +985,28 @@ figcomercial.update_yaxes(
 # %%
 df_confeccion = df_costos[df_costos['Proceso Producción'] == 'Confección'].copy()
 
-# Sumamos la diferencia por OP para que solo exista una barra por etiqueta
+# 1. Agregamos las columnas necesarias en el groupby
+# Usamos 'first' para comercial porque siempre es el mismo para una misma OP
 df_consolidado = df_confeccion.groupby(['Categoría', 'OP Det']).agg({
-    'Diferencia': 'sum'
+    'Diferencia': 'sum',
+    'Nombre del Comercial': 'first', 
+    'Valor total OS': 'sum',
+    'valor total op': 'sum'
 }).reset_index()
 
-# Ahora sí calculamos el impacto absoluto sobre el total de la OP
 df_consolidado['abs_impacto'] = df_consolidado['Diferencia'].abs()
 
-# Top sobrecosto (mayor impacto positivo)
+# ... (tus pasos de top_sobrecosto, top_ahorro y concat se mantienen igual) ...
 top_sobrecosto = df_consolidado.nlargest(10, 'Diferencia')
 top_ahorro = df_consolidado.nsmallest(10, 'Diferencia')
-
-# Unir ambos
 top_impacto = pd.concat([top_sobrecosto, top_ahorro], ignore_index=True)
-
-# Ordenar de mayor a menor Diferencia (rojo arriba, verde abajo)
 top_impacto = top_impacto.sort_values(by='Diferencia', ascending=False)
 
 top_impacto['Etiqueta'] = top_impacto['Categoría'] + " (OP: " + top_impacto['OP Det'].astype(str) + ")"
+top_impacto['estado'] = top_impacto['Diferencia'].apply(lambda x: 'Ahorro' if x < 0 else 'Sobrecosto')
 
-top_impacto['estado'] = top_impacto['Diferencia'].apply(
-    lambda x: 'Ahorro' if x < 0 else 'Sobrecosto'
-)
-
+# 2. Configuramos el gráfico con hover_data y labels
+# 1. Asegúrate de que el hover_data tenga las 3 columnas en este orden exacto
 fig = px.bar(
     top_impacto,
     x='Diferencia',
@@ -1118,8 +1014,27 @@ fig = px.bar(
     orientation='h',
     color='estado',
     color_discrete_map={'Ahorro': 'green', 'Sobrecosto': 'red'},
+    hover_data=['Nombre del Comercial', 'Valor total OS', 'valor total op'], # [0], [1], [2]
+    labels={
+        "Nombre del Comercial": "Comercial",
+        "Valor total OS": "Valor total pagado",
+        "valor total op": "Valor total presupuestado",
+        "Diferencia": "Desviación ($)"
+    }
 )
 
+# 2. Ajustamos el template para que llame a cada dato por su posición
+fig.update_traces(
+    marker_line_width=0,
+    hovertemplate=(
+        "<b>%{y}</b><br>" +
+        "Diferencia: %{x:$,.0f}<br>" +
+        "Comercial: %{customdata[0]}<br>" +
+        "Pagado: %{customdata[1]:$,.0f}<br>" +
+        "Costeado: %{customdata[2]:$,.0f}" + # <-- Agregamos el índice [2]
+        "<extra></extra>"
+    )
+)
 # Esto elimina las líneas negras que dividen los segmentos dentro de la barra
 fig.update_traces(marker_line_width=0) 
 fig.update_layout(
@@ -1130,7 +1045,7 @@ fig.update_layout(
     # 2. Tipografía Times New Roman
     font=dict(
         family="Times New Roman, Times, serif",
-        size=14,
+        size=10,
         color="#333333" # Color de letra gris muy oscuro (casi negro)
     ),
     
@@ -1202,7 +1117,7 @@ fig_confe.update_layout(
     # 2. Tipografía Times New Roman
     font=dict(
         family="Times New Roman, Times, serif",
-        size=14,
+        size=12,
         color="#333333" # Color de letra gris muy oscuro (casi negro)
     ),
     
@@ -1254,7 +1169,7 @@ fig_subl= px.scatter(
     y='costo_antes_iva',
     color='OP Det',
     color_discrete_sequence=paleta_textil,
-    hover_data=['OP Det', 'Nombre del Comercial', 'Costeo_Producto', 'OS-Valor Unitario', 'costo_antes_iva'],
+    hover_data=['OP Det', 'Nombre del Comercial', 'OS-Valor Unitario', 'costo_antes_iva'],
     title='Sublimación'
 )
 
@@ -1268,6 +1183,8 @@ fig_subl.add_shape(
     line=dict(color="pink", dash="dash")
 )
 fig_subl.update_traces(marker=dict(size=15)) 
+
+
 
 fig_subl.update_layout(
     # 1. Fondo transparente
@@ -1309,30 +1226,26 @@ fig_subl.update_yaxes(
 # %%
 df_subli = df_costos[df_costos['Proceso Producción'] == 'Sublimación']
 
-# Sumamos la diferencia por OP para que solo exista una barra por etiqueta
 df_consolidado_subl = df_subli.groupby(['Categoría', 'OP Det']).agg({
-    'Diferencia': 'sum'
+    'Diferencia': 'sum',
+    'Nombre del Comercial': 'first', 
+    'Valor total OS': 'sum',
+    'valor total op': 'sum'
 }).reset_index()
 
-# Ahora sí calculamos el impacto absoluto sobre el total de la OP
 df_consolidado_subl['abs_impacto'] = df_consolidado_subl['Diferencia'].abs()
 
-# Top de las OPs con mayor impacto real
-top_sobrecosto_sub = df_consolidado_subl.nlargest(7, 'Diferencia')
-top_ahorro_sub = df_consolidado_subl.nsmallest(7, 'Diferencia')
-
-# Unir ambos
+# ... (tus pasos de top_sobrecosto, top_ahorro y concat se mantienen igual) ...
+top_sobrecosto_sub = df_consolidado_subl.nlargest(10, 'Diferencia')
+top_ahorro_sub = df_consolidado_subl.nsmallest(10, 'Diferencia')
 top_impacto_sub = pd.concat([top_sobrecosto_sub, top_ahorro_sub], ignore_index=True)
-
-# Ordenar de mayor a menor Diferencia (rojo arriba, verde abajo)
 top_impacto_sub = top_impacto_sub.sort_values(by='Diferencia', ascending=False)
 
 top_impacto_sub['Etiqueta'] = top_impacto_sub['Categoría'] + " (OP: " + top_impacto_sub['OP Det'].astype(str) + ")"
+top_impacto_sub['estado'] = top_impacto_sub['Diferencia'].apply(lambda x: 'Ahorro' if x < 0 else 'Sobrecosto')
 
-top_impacto_sub['estado'] = top_impacto_sub['Diferencia'].apply(
-    lambda x: 'Ahorro' if x < 0 else 'Sobrecosto'
-)
-
+# 2. Configuramos el gráfico con hover_data y labels
+# 1. Asegúrate de que el hover_data tenga las 3 columnas en este orden exacto
 fig_sub = px.bar(
     top_impacto_sub,
     x='Diferencia',
@@ -1340,7 +1253,26 @@ fig_sub = px.bar(
     orientation='h',
     color='estado',
     color_discrete_map={'Ahorro': 'green', 'Sobrecosto': 'red'},
-    template='plotly_dark'
+    hover_data=['Nombre del Comercial', 'Valor total OS', 'valor total op'], # [0], [1], [2]
+    labels={
+        "Nombre del Comercial": "Comercial",
+        "Valor total OS": "Valor total pagado",
+        "valor total op": "Valor total presupuestado",
+        "Diferencia": "Desviación ($)"
+    }
+)
+
+# 2. Ajustamos el template para que llame a cada dato por su posición
+fig_sub.update_traces(
+    marker_line_width=0,
+    hovertemplate=(
+        "<b>%{y}</b><br>" +
+        "Diferencia: %{x:$,.0f}<br>" +
+        "Comercial: %{customdata[0]}<br>" +
+        "Pagado: %{customdata[1]:$,.0f}<br>" +
+        "Costeado: %{customdata[2]:$,.0f}" + # <-- Agregamos el índice [2]
+        "<extra></extra>"
+    )
 )
 
 # Esto elimina las líneas negras que dividen los segmentos dentro de la barra
@@ -1353,7 +1285,7 @@ fig_sub.update_layout(
     # 2. Tipografía Times New Roman
     font=dict(
         family="Times New Roman, Times, serif",
-        size=14,
+        size=10,
         color="#333333" # Color de letra gris muy oscuro (casi negro)
     ),
     
@@ -1462,27 +1394,25 @@ df_bord = df_costos[df_costos['Proceso Producción'] == 'Bordado']
 
 # Sumamos la diferencia por OP para que solo exista una barra por etiqueta
 df_consolidado_bord = df_bord.groupby(['Categoría', 'OP Det']).agg({
-    'Diferencia': 'sum'
+    'Diferencia': 'sum',
+    'Nombre del Comercial': 'first', 
+    'Valor total OS': 'sum',
+    'valor total op': 'sum'
 }).reset_index()
 
-# Ahora sí calculamos el impacto absoluto sobre el total de la OP
 df_consolidado_bord['abs_impacto'] = df_consolidado_bord['Diferencia'].abs()
 
+# ... (tus pasos de top_sobrecosto, top_ahorro y concat se mantienen igual) ...
 top_sobrecosto_bord = df_consolidado_bord.nlargest(10, 'Diferencia')
 top_ahorro_bord = df_consolidado_bord.nsmallest(10, 'Diferencia')
-
-# Unir ambos
 top_impacto_bord = pd.concat([top_sobrecosto_bord, top_ahorro_bord], ignore_index=True)
-
-# Ordenar de mayor a menor Diferencia (rojo arriba, verde abajo)
 top_impacto_bord = top_impacto_bord.sort_values(by='Diferencia', ascending=False)
 
 top_impacto_bord['Etiqueta'] = top_impacto_bord['Categoría'] + " (OP: " + top_impacto_bord['OP Det'].astype(str) + ")"
+top_impacto_bord['estado'] = top_impacto_bord['Diferencia'].apply(lambda x: 'Ahorro' if x < 0 else 'Sobrecosto')
 
-top_impacto_bord['estado'] = top_impacto_bord['Diferencia'].apply(
-    lambda x: 'Ahorro' if x < 0 else 'Sobrecosto'
-)
-
+# 2. Configuramos el gráfico con hover_data y labels
+# 1. Asegúrate de que el hover_data tenga las 3 columnas en este orden exacto
 fig_bord = px.bar(
     top_impacto_bord,
     x='Diferencia',
@@ -1490,9 +1420,27 @@ fig_bord = px.bar(
     orientation='h',
     color='estado',
     color_discrete_map={'Ahorro': 'green', 'Sobrecosto': 'red'},
-    template='plotly_dark'
+    hover_data=['Nombre del Comercial', 'Valor total OS', 'valor total op'], # [0], [1], [2]
+    labels={
+        "Nombre del Comercial": "Comercial",
+        "Valor total OS": "Valor total pagado",
+        "valor total op": "Valor total presupuestado",
+        "Diferencia": "Desviación ($)"
+    }
 )
 
+# 2. Ajustamos el template para que llame a cada dato por su posición
+fig_bord.update_traces(
+    marker_line_width=0,
+    hovertemplate=(
+        "<b>%{y}</b><br>" +
+        "Diferencia: %{x:$,.0f}<br>" +
+        "Comercial: %{customdata[0]}<br>" +
+        "Pagado: %{customdata[1]:$,.0f}<br>" +
+        "Costeado: %{customdata[2]:$,.0f}" + # <-- Agregamos el índice [2]
+        "<extra></extra>"
+    )
+)
 # Esto elimina las líneas negras que dividen los segmentos dentro de la barra
 fig_bord.update_traces(marker_line_width=0) 
 
@@ -1504,7 +1452,7 @@ fig_bord.update_layout(
     # 2. Tipografía Times New Roman
     font=dict(
         family="Times New Roman, Times, serif",
-        size=14,
+        size=10,
         color="#333333" # Color de letra gris muy oscuro (casi negro)
     ),
     
@@ -1612,26 +1560,22 @@ df_est = df_costos[df_costos['Proceso Producción'] == 'Estampado']
 
 # Sumamos la diferencia por OP para que solo exista una barra por etiqueta
 df_consolidado_est = df_est.groupby(['Categoría', 'OP Det']).agg({
-    'Diferencia': 'sum'
+    'Diferencia': 'sum',
+    'Nombre del Comercial': 'first', 
+    'Valor total OS': 'sum',
+    'valor total op': 'sum'
 }).reset_index()
 
-# Ahora sí calculamos el impacto absoluto sobre el total de la OP
 df_consolidado_est['abs_impacto'] = df_consolidado_est['Diferencia'].abs()
 
+# ... (tus pasos de top_sobrecosto, top_ahorro y concat se mantienen igual) ...
 top_sobrecosto_est = df_consolidado_est.nlargest(10, 'Diferencia')
 top_ahorro_est = df_consolidado_est.nsmallest(10, 'Diferencia')
-
-# Unir ambos
 top_impacto_est = pd.concat([top_sobrecosto_est, top_ahorro_est], ignore_index=True)
-
-# Ordenar de mayor a menor Diferencia (rojo arriba, verde abajo)
 top_impacto_est = top_impacto_est.sort_values(by='Diferencia', ascending=False)
 
 top_impacto_est['Etiqueta'] = top_impacto_est['Categoría'] + " (OP: " + top_impacto_est['OP Det'].astype(str) + ")"
-
-top_impacto_est['estado'] = top_impacto_est['Diferencia'].apply(
-    lambda x: 'Ahorro' if x < 0 else 'Sobrecosto'
-)
+top_impacto_est['estado'] = top_impacto_est['Diferencia'].apply(lambda x: 'Ahorro' if x < 0 else 'Sobrecosto')
 
 fig_est = px.bar(
     top_impacto_est,
@@ -1640,7 +1584,26 @@ fig_est = px.bar(
     orientation='h',
     color='estado',
     color_discrete_map={'Ahorro': 'green', 'Sobrecosto': 'red'},
-    template='plotly_dark'
+    hover_data=['Nombre del Comercial', 'Valor total OS', 'valor total op'], # [0], [1], [2]
+    labels={
+        "Nombre del Comercial": "Comercial",
+        "Valor total OS": "Valor total pagado",
+        "valor total op": "Valor total presupuestado",
+        "Diferencia": "Desviación ($)"
+    }
+)
+
+# 2. Ajustamos el template para que llame a cada dato por su posición
+fig_est.update_traces(
+    marker_line_width=0,
+    hovertemplate=(
+        "<b>%{y}</b><br>" +
+        "Diferencia: %{x:$,.0f}<br>" +
+        "Comercial: %{customdata[0]}<br>" +
+        "Pagado: %{customdata[1]:$,.0f}<br>" +
+        "Costeado: %{customdata[2]:$,.0f}" + # <-- Agregamos el índice [2]
+        "<extra></extra>"
+    )
 )
 
 # Esto elimina las líneas negras que dividen los segmentos dentro de la barra
@@ -1654,7 +1617,7 @@ fig_est.update_layout(
     # 2. Tipografía Times New Roman
     font=dict(
         family="Times New Roman, Times, serif",
-        size=14,
+        size=10,
         color="#333333" # Color de letra gris muy oscuro (casi negro)
     ),
     

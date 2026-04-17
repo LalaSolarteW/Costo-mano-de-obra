@@ -6,15 +6,14 @@ from graficas import figimpactoservicio, figboxplot, ahorro_total_fmt, balance_t
 from graficas import fig_confe, fig, fig_subl, fig_sub, fig_bord, fig_bordado, fig_estampado, fig_est,  fig_pqt_sin,  fig_pqt_sinM, fig_pre, fig_prelavado, fig_cyc, fig_cycc, fig_pqt_com, fig_pqtcom, fig_valor_pro, fig,fig_vol
 from dash.exceptions import PreventUpdate
 app = Dash(__name__)
+server = app.server
 
 # Importamos el excel con el df que necesitamos para graficar
-df_costos_fechacom = pd.read_excel('df_final1.xlsx')
-df_costos_valorop = pd.read_excel('df_fin.xlsx')
+df_costos_fechacom = pd.read_excel('dffinn.xlsx')
 
 # Nos aseguramos de tener la columna en formato de fecha
 df_costos_fechacom["Fecha"] = pd.to_datetime(df_costos_fechacom["Fecha"])
-df_costos_valorop["Fecha"] = pd.to_datetime(df_costos_valorop["Fecha"])
-
+df_costos_fechacom = df_costos_fechacom[df_costos_fechacom["Fecha"].dt.year >= 2024]
 # Creamos distintas columnas para facilitar la creación del gráfico
 df_costos_fechacom["Año"] = df_costos_fechacom["Fecha"].dt.year
 df_costos_fechacom["Mes"] = df_costos_fechacom["Fecha"].dt.month
@@ -22,11 +21,6 @@ df_costos_fechacom["Mes_nombre"] = df_costos_fechacom["Fecha"].dt.strftime("%b")
 df_costos_fechacom["Año-Mes"] = df_costos_fechacom["Fecha"].dt.to_period("M").astype(str)
 fechas_unicas = sorted(df_costos_fechacom["Año-Mes"].unique())
 
-df_costos_valorop["Año"] = df_costos_valorop["Fecha"].dt.year
-df_costos_valorop["Mes"] = df_costos_valorop["Fecha"].dt.month
-df_costos_valorop["Mes_nombre"] = df_costos_valorop["Fecha"].dt.strftime("%b")
-df_costos_valorop["Año-Mes"] = df_costos_valorop["Fecha"].dt.to_period("M").astype(str)
-fechas_unicass = sorted(df_costos_valorop["Año-Mes"].unique())
 
 # HISTORICO DE PRECIOS POR CATEGORÍA
 
@@ -225,23 +219,23 @@ def actualizar_prov_cli(categoria, servicio, cliente, start_date, end_date):
         (df_filtrado1["Fecha"] <= end_date)
     ]
 
-    df_grouped = df_filtrado1.groupby(["OS-Proveedor", "Categoría"]).agg({
+    df_grouped = df_filtrado1.groupby(["TALLER SERVICIO", "Categoría"]).agg({
         "OS-Valor Unitario": ["mean", "min", "max"],
-        'OS-Cantidad': 'sum'
+        'CANTIDAD ENTREGA SATELITE': 'sum'
     }).reset_index()
     
     # Aplanar las columnas
-    df_grouped.columns = ["OS-Proveedor", "Categoría", "OS-Valor Unitario_mean", "OS-Valor Unitario_min", "OS-Valor Unitario_max", "OS-Cantidad"]
+    df_grouped.columns = ["TALLER SERVICIO", "Categoría", "OS-Valor Unitario_mean", "OS-Valor Unitario_min", "OS-Valor Unitario_max", "CANTIDAD ENTREGA SATELITE"]
 
 
     figproveedores = px.bar(
         df_grouped,
         x="Categoría",
         y="OS-Valor Unitario_mean",
-        color="OS-Proveedor",
+        color="TALLER SERVICIO",
         barmode="group",
         title="Costo Promedio por Proveedor",
-        custom_data=["OS-Valor Unitario_min", "OS-Valor Unitario_max", "OS-Cantidad"]
+        custom_data=["OS-Valor Unitario_min", "OS-Valor Unitario_max", "CANTIDAD ENTREGA SATELITE"]
     )
     
     # Actualizar el hovertemplate para mostrar promedio, mínimo y máximo
@@ -339,13 +333,13 @@ def actualizar_val_prov (servicio, start_date, end_date):
         (df_filtrado_prov["Fecha"] <= end_date)
     ]
     
-    df_pareto_valorp = df_filtrado_prov.groupby(['OP-D', 'Proceso Producción', 'OS-Proveedor', 'Producto']).agg({
-        'OS-Cantidad': 'mean',
+    df_pareto_valorp = df_filtrado_prov.groupby(['OP-D', 'Proceso Producción', 'TALLER SERVICIO', 'Num OS']).agg({
+        'CANTIDAD ENTREGA SATELITE': 'mean',
         'Valor total OS': 'mean'
     })
     
-    df_pareto_valorpro = df_pareto_valorp.groupby('OS-Proveedor').agg({
-        'OS-Cantidad': 'sum',
+    df_pareto_valorpro = df_pareto_valorp.groupby('TALLER SERVICIO').agg({
+        'CANTIDAD ENTREGA SATELITE': 'sum',
         'Valor total OS': 'sum'
     }).reset_index()
 
@@ -359,12 +353,12 @@ def actualizar_val_prov (servicio, start_date, end_date):
     fig_valor_pro = go.Figure()
     # Barras: Valor Total OP por cliente
     fig_valor_pro.add_trace(go.Bar(
-        x=df_pareto_valorpro['OS-Proveedor'],
+        x=df_pareto_valorpro['TALLER SERVICIO'],
         y=df_pareto_valorpro['Valor total OS'],
         name='Valor Total OS ($)',
         marker_color='#632E8B', 
         # Pasamos la columna directamente
-        customdata=df_pareto_valorpro['OS-Cantidad'], 
+        customdata=df_pareto_valorpro['CANTIDAD ENTREGA SATELITE'], 
         hovertemplate=(
             "<b>Proveedor: %{x}</b><br>" +
             "Valor Total OS: %{y:$,.0f}<br>" +
@@ -375,7 +369,7 @@ def actualizar_val_prov (servicio, start_date, end_date):
 
     # Línea: % Acumulado
     fig_valor_pro.add_trace(go.Scatter(
-        x=df_pareto_valorpro['OS-Proveedor'],
+        x=df_pareto_valorpro['TALLER SERVICIO'],
         y=df_pareto_valorpro['Acumulado'],
         name='% Acumulado',
         yaxis='y2',
@@ -478,22 +472,22 @@ def actualizar_vol_prov (servicio, start_date, end_date):
         (df_filtrado_pro["Fecha"] <= end_date)
     ]
     
-    df_pareto_v = df_filtrado_pro.groupby(['OP-D', 'Proceso Producción', 'OS-Proveedor', 'Producto']).agg({
-        'OS-Cantidad': 'mean',
+    df_pareto_v = df_filtrado_pro.groupby(['OP-D', 'Proceso Producción', 'TALLER SERVICIO', 'Num OS']).agg({
+        'CANTIDAD ENTREGA SATELITE': 'mean',
         'Valor total OS': 'mean'
     })
     
-    df_pareto_volu = df_pareto_v.groupby('OS-Proveedor').agg({
-        'OS-Cantidad': 'sum',
+    df_pareto_volu = df_pareto_v.groupby('TALLER SERVICIO').agg({
+        'CANTIDAD ENTREGA SATELITE': 'sum',
         'Valor total OS': 'sum'
     }).reset_index()
 
     # Ordenamos la cantidad de mayor a menor
-    df_pareto_volu = df_pareto_volu.sort_values(by='OS-Cantidad', ascending=False)
+    df_pareto_volu = df_pareto_volu.sort_values(by='CANTIDAD ENTREGA SATELITE', ascending=False)
 
     # Cálculo de acumulados sobre el VOLUMEN de producción
-    total_prendas = df_pareto_volu['OS-Cantidad'].sum()
-    df_pareto_volu['Porcentaje'] = (df_pareto_volu['OS-Cantidad'] / total_prendas) * 100
+    total_prendas = df_pareto_volu['CANTIDAD ENTREGA SATELITE'].sum()
+    df_pareto_volu['Porcentaje'] = (df_pareto_volu['CANTIDAD ENTREGA SATELITE'] / total_prendas) * 100
     df_pareto_volu['Acumulado'] = df_pareto_volu['Porcentaje'].cumsum()
 
     fig_vol = go.Figure()
@@ -501,8 +495,8 @@ def actualizar_vol_prov (servicio, start_date, end_date):
     # Barras de la cantidad de pedidos por cliente
 
     fig_vol.add_trace(go.Bar(
-        x=df_pareto_volu['OS-Proveedor'],
-        y=df_pareto_volu['OS-Cantidad'],
+        x=df_pareto_volu['TALLER SERVICIO'],
+        y=df_pareto_volu['CANTIDAD ENTREGA SATELITE'],
         name='Volumen de Producción (Prendas)',
         marker_color="#632E8B", 
         # Pasamos datos extra al hover/etiqueta
@@ -517,7 +511,7 @@ def actualizar_vol_prov (servicio, start_date, end_date):
 
     # Línea del % acumulado
     fig_vol.add_trace(go.Scatter(
-        x=df_pareto_volu['OS-Proveedor'],
+        x=df_pareto_volu['TALLER SERVICIO'],
         y=df_pareto_volu['Acumulado'],
         name='% Acumulado Volumen',
         yaxis='y2',
@@ -583,14 +577,32 @@ dcc.DatePickerRange(
     id="filtro-fecha-sobreprecio"
 ),
 
+dcc.Dropdown(
+    options=[{"label": p, "value": p} 
+             for p in df_costos_fechacom["Proceso Producción"].unique()],
+    multi=True,
+    placeholder="Selecciona el proceso de produccion",
+    id="filtro-servicio-sobreprecio"
+),
+
+dcc.Dropdown(
+    options=[{"label": c, "value": c} 
+             for c in df_costos_fechacom["Categoría"].unique()],
+    multi=True,
+    placeholder="Selecciona categoría",
+    id="filtro-categoria-sobreprecio"
+),
+
 dcc.Graph(id="grafico-sobreprecio-prov")
 @app.callback(
     Output("grafico-sobreprecio-prov", "figure"),
+    Input("filtro-categoria-sobreprecio", "value"),
+    Input("filtro-servicio-sobreprecio", "value"),
     Input("filtro-fecha-sobreprecio", "start_date"),
     Input("filtro-fecha-sobreprecio", "end_date")
 )
 
-def actualizar_sob_prov (start_date, end_date):
+def actualizar_sob_prov (categoria, servicio, start_date, end_date):
     
     if start_date is None or end_date is None:
         raise PreventUpdate
@@ -599,6 +611,12 @@ def actualizar_sob_prov (start_date, end_date):
     end_date = pd.to_datetime(end_date)
 
     df_filtrado_sob = df_costos_fechacom.copy()
+    
+    if categoria:
+        df_filtrado_sob = df_filtrado_sob[df_filtrado_sob["Categoría"].isin(categoria)]
+        
+    if servicio:
+        df_filtrado_sob = df_filtrado_sob[df_filtrado_sob["Proceso Producción"].isin(servicio)]
             
     # Filtro fecha   
     df_filtrado_sob = df_filtrado_sob[
@@ -606,7 +624,7 @@ def actualizar_sob_prov (start_date, end_date):
         (df_filtrado_sob["Fecha"] <= end_date)
     ]
     
-    group_cols = ['Categoría', 'Cliente', 'Proceso Producción']
+    group_cols = ['Productos', 'Cliente', 'Proceso Producción']
 
     # Creamos un df agrupando las columnas del paso anterior y el valor de la OS, sacando entre estos datos solo el valor más bajo de la misma agrupacion
     df_minimos = df_filtrado_sob.groupby(group_cols)['OS-Valor Unitario'].transform('min')
@@ -615,13 +633,14 @@ def actualizar_sob_prov (start_date, end_date):
     df_filtrado_sob['Diferencia_Unitaria'] = df_filtrado_sob['OS-Valor Unitario'] - df_minimos
 
     # Multiplicamos la columna de diferencia por la cantidad para saber cuánto a nivel general se pagó de más 
-    df_filtrado_sob['Ahorro_Potencial_Total'] = df_filtrado_sob['Diferencia_Unitaria'] * df_filtrado_sob['OS-Cantidad']
+    df_filtrado_sob['Ahorro_Potencial_Total'] = df_filtrado_sob['Diferencia_Unitaria'] * df_filtrado_sob['CANTIDAD ENTREGA SATELITE']
 
     # Agrupación para el gráfico
-    df_pareto_ahorro = df_filtrado_sob.groupby('OS-Proveedor').agg({
+    df_pareto_ahorro = df_filtrado_sob.groupby('TALLER SERVICIO').agg({
         'Ahorro_Potencial_Total': 'sum',
         'Valor total OS': 'sum',
-        'OS-Cantidad': 'sum'
+        'CANTIDAD ENTREGA SATELITE': 'sum',
+        'Categoría': lambda x: ', '.join(x.unique())
     }).reset_index()
 
     df_pareto_ahorro = df_pareto_ahorro.sort_values(by='Ahorro_Potencial_Total', ascending=False)
@@ -634,22 +653,23 @@ def actualizar_sob_prov (start_date, end_date):
     fig_ahorro = go.Figure()
 
     fig_ahorro.add_trace(go.Bar(
-        x=df_pareto_ahorro['OS-Proveedor'],
+        x=df_pareto_ahorro['TALLER SERVICIO'],
         y=df_pareto_ahorro['Ahorro_Potencial_Total'],
         name='Gasto Excedente ($)',
         marker_color="#45007A",
-        customdata=df_pareto_ahorro[['Valor total OS', 'OS-Cantidad']], 
+        customdata=df_pareto_ahorro[['Valor total OS', 'Categoría', 'CANTIDAD ENTREGA SATELITE']], 
         hovertemplate=(
             "<b>Proveedor: %{x}</b><br>" +
             "Ahorro potencial total: %{y:$,.0f}<br>" +
             "Valor total de OS: %{customdata[0]:$,.0f}<br>" + 
-            "Total Prendas: %{customdata[1]:,.0f}" +
+            "Categorías: %{customdata[1]}<br>" + # <-- QUITAMOS el formato de moneda $:,.0f porque es texto
+            "Total Prendas: %{customdata[2]:,.0f}" +
             "<extra></extra>"
         )
     ))
 
     fig_ahorro.add_trace(go.Scatter(
-        x=df_pareto_ahorro['OS-Proveedor'],
+        x=df_pareto_ahorro['TALLER SERVICIO'],
         y=df_pareto_ahorro['Acumulado'],
         name='% Acumulado',
         yaxis='y2',
@@ -704,6 +724,129 @@ def actualizar_sob_prov (start_date, end_date):
     )
     return fig_ahorro
 
+# PRENDAS EN LAS QUE SE PUEDE REDUCIR COSTOS
+
+dcc.DatePickerRange(
+    start_date=df_costos_fechacom["Fecha"].min(),
+    end_date=df_costos_fechacom["Fecha"].max(),
+    display_format="YYYY-MM-DD",
+    id="filtro-fecha-sobreprecio-prenda"
+),
+
+dcc.Graph(id="grafico-sobreprecio-prend")
+@app.callback(
+    Output("grafico-sobreprecio-prend", "figure"),
+    Input("filtro-fecha-sobreprecio-prenda", "start_date"),
+    Input("filtro-fecha-sobreprecio-prenda", "end_date")
+)
+def actualizar_sob_prov (start_date, end_date):
+    
+    if start_date is None or end_date is None:
+        raise PreventUpdate
+    
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+
+    df_filtrado_pre = df_costos_fechacom.copy()
+            
+    # Filtro fecha   
+    df_filtrado_pre = df_filtrado_pre[
+        (df_filtrado_pre["Fecha"] >= start_date) &
+        (df_filtrado_pre["Fecha"] <= end_date)
+    ]
+    # Utilizamos los mismos cálculos de ahorro que ya habiamos hecho anteriormente (Diferencia_Unitaria y Ahorro_Potencial_Total)
+
+    group_cols = ['Productos', 'Cliente', 'Proceso Producción']
+    df_filtrado_pre['min_val'] = df_filtrado_pre.groupby(group_cols)['OS-Valor Unitario'].transform('min')
+    df_filtrado_pre['Ahorro_Potencial_Total'] = (df_filtrado_pre['OS-Valor Unitario'] - df_filtrado_pre['min_val']) * df_filtrado_pre['CANTIDAD ENTREGA SATELITE']
+
+    # Agrupamos por categoría, sumamos el ahorro y traemos el conteo de procesos para tener contexto
+    df_pareto_pre = df_filtrado_pre.groupby('Categoría').agg({
+        'Ahorro_Potencial_Total': 'sum',
+        'Valor total OS': 'sum',
+        'Proceso Producción': 'nunique' # Cuántos procesos distintos hay en esta categoría
+    }).reset_index()
+
+    # 4. Ordenar y Acumulados
+    df_pareto_pre = df_pareto_pre.sort_values(by='Ahorro_Potencial_Total', ascending=False)
+    total_ahorro_pre = df_pareto_pre['Ahorro_Potencial_Total'].sum()
+    df_pareto_pre['Acumulado'] = (df_pareto_pre['Ahorro_Potencial_Total'].cumsum() / total_ahorro_pre) * 100
+
+
+    fig_cat_ahorro = go.Figure()
+
+    fig_cat_ahorro.add_trace(go.Bar(
+        x=df_pareto_pre['Categoría'],
+        y=df_pareto_pre['Ahorro_Potencial_Total'],
+        name='Oportunidad de Ahorro ($)',
+        marker_color='#45007A',
+        customdata=df_pareto_pre[['Valor total OS', 'Proceso Producción']],
+        hovertemplate=(
+            "<b>Categoría: %{x}</b><br>" +
+            "Ahorro potencial total: %{y:$,.0f}<br>" +
+            "Valor total OS: %{customdata[0]:$,.0f}<br>" +
+            "Variedad de Procesos: %{customdata[1]}<extra></extra>"
+        )
+    ))
+
+    fig_cat_ahorro.add_trace(go.Scatter(
+        x=df_pareto_pre['Categoría'],
+        y=df_pareto_pre['Acumulado'],
+        name='% Acumulado',
+        yaxis='y2',
+        line=dict(color='#F561F0', width=3),
+        hovertemplate="Impacto Acumulado: %{y:.2f}%<extra></extra>"
+    ))
+
+    # Layout
+    fig_cat_ahorro.update_layout(
+        xaxis=dict(title='Categoría'),
+        yaxis=dict(title='Ahorro Potencial Total ($)'),
+        yaxis2=dict(title='Porcentaje Acumulado (%)', overlaying='y', side='right', range=[0, 105]),
+        hovermode='x unified',
+        template='plotly_white'
+    )
+
+    # Línea del 80%
+    fig_cat_ahorro.add_shape(type="line", x0=0, x1=1, y0=80, y1=80, yref='y2', xref='paper',
+                  line=dict(color="black", width=2, dash="dot"))
+
+    fig_cat_ahorro.update_layout(
+        # 1. Fondo transparente
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    
+        # 2. Tipografía Times New Roman
+        font=dict(
+            family="Times New Roman, Times, serif",
+            size=10,
+            color="#333333" # Color de letra gris muy oscuro (casi negro)
+        ),
+    
+        # Ajuste opcional de márgenes para que la letra no se corte
+        margin=dict(t=80, b=50, l=50, r=50)
+    )   
+
+    # 3. Líneas de cuadrícula más oscuras
+    fig_cat_ahorro.update_xaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', # Un gris más marcado (puedes usar 'gray' si lo quieres aún más oscuro)
+        linecolor='gray',    # Línea del eje principal en negro
+        zeroline=True,        # Mantener la línea del cero...
+        zerolinecolor='#d3d3d3', # ...pero usar un gris mucho más suave (LightGrey)
+        zerolinewidth=1
+    )
+
+    fig_cat_ahorro.update_yaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', 
+        linecolor='gray'
+    )
+
+    return fig_cat_ahorro
+
 # PARETO TOTAL DE PRENDAS
 
 dcc.DatePickerRange(
@@ -738,21 +881,21 @@ def actualizar_categoria (start_date, end_date):
     
     # Agrupamos por categoria y op detalle para tener las cantidades reales
     df_pareto_voluu = df_filtrado_cate.groupby(['Categoría', 'OP-D']).agg({
-        'OS-Cantidad': 'mean',
+        'CANTIDAD ENTREGA SATELITE': 'mean',
         'Valor total OS': 'sum'
     }).reset_index()
       
     df_pareto_vol_cat = df_pareto_voluu.groupby('Categoría').agg({
-        'OS-Cantidad': 'sum',
+        'CANTIDAD ENTREGA SATELITE': 'sum',
         'Valor total OS': 'sum'
     }).reset_index()
 
     # Ordenamos la cantidad de mayor a menor
-    df_pareto_vol_cat = df_pareto_vol_cat.sort_values(by='OS-Cantidad', ascending=False)
+    df_pareto_vol_cat = df_pareto_vol_cat.sort_values(by='CANTIDAD ENTREGA SATELITE', ascending=False)
 
     # Cálculo de acumulados sobre el VOLUMEN de producción
-    total_prendas = df_pareto_vol_cat['OS-Cantidad'].sum()
-    df_pareto_vol_cat['Porcentaje'] = (df_pareto_vol_cat['OS-Cantidad'] / total_prendas) * 100
+    total_prendas = df_pareto_vol_cat['CANTIDAD ENTREGA SATELITE'].sum()
+    df_pareto_vol_cat['Porcentaje'] = (df_pareto_vol_cat['CANTIDAD ENTREGA SATELITE'] / total_prendas) * 100
     df_pareto_vol_cat['Acumulado'] = df_pareto_vol_cat['Porcentaje'].cumsum()
 
     fig_volumenc = go.Figure()
@@ -761,7 +904,7 @@ def actualizar_categoria (start_date, end_date):
 
     fig_volumenc.add_trace(go.Bar(
         x=df_pareto_vol_cat['Categoría'],
-        y=df_pareto_vol_cat['OS-Cantidad'],
+        y=df_pareto_vol_cat['CANTIDAD ENTREGA SATELITE'],
         name='Volumen de Producción (Prendas)',
         marker_color="#632E8B", 
         # Pasamos datos extra al hover/etiqueta
@@ -852,6 +995,14 @@ dcc.Dropdown(
 ),
 
 dcc.Dropdown(
+    options=[{"label": c, "value": c} 
+             for c in df_costos_fechacom["Cliente"].unique()],
+    multi=True,
+    placeholder="Selecciona cliente",
+    id="filtro-cliente-prod"
+),
+
+dcc.Dropdown(
     options=[{"label": p, "value": p} 
              for p in df_costos_fechacom["Proceso Producción"].unique()],
     multi=True,
@@ -863,12 +1014,13 @@ dcc.Graph(id="grafico-producto")
 @app.callback(
     Output("grafico-producto", "figure"),
     Input("filtro-categoria-prod", "value"),
+    Input("filtro-cliente-prod", "value"),
     Input("filtro-servicio-prod", "value"),
     Input("filtro-fecha-prod", "start_date"),
     Input("filtro-fecha-prod", "end_date")
 )
 
-def actualizarr(categoria, servicio, start_date, end_date):
+def actualizarr(categoria, cliente, servicio, start_date, end_date):
     
     if start_date is None or end_date is None:
         raise PreventUpdate
@@ -881,6 +1033,9 @@ def actualizarr(categoria, servicio, start_date, end_date):
     # Filtro categoría
     if categoria:
         df_filtrado2 = df_filtrado2[df_filtrado2["Categoría"].isin(categoria)]
+    
+    if cliente:
+        df_filtrado2 = df_filtrado2[df_filtrado2["Cliente"].isin(cliente)]
         
     if servicio:
         df_filtrado2 = df_filtrado2[df_filtrado2["Proceso Producción"].isin(servicio)]
@@ -890,35 +1045,35 @@ def actualizarr(categoria, servicio, start_date, end_date):
         (df_filtrado2["Fecha"] <= end_date)
     ]
     
-    dfagrup = df_filtrado2.groupby(['Producto', 'OS-Proveedor', 'OP-D', 'Proceso Producción', 'Cliente']).agg({
+    dfagrup = df_filtrado2.groupby(['Productos', 'TALLER SERVICIO', 'OP-D', 'Proceso Producción', 'Cliente']).agg({
         'Valor total OS': 'mean',
-        'OS-Cantidad':'mean'
+        'CANTIDAD ENTREGA SATELITE':'mean'
     }).reset_index()
           
-    top_10_prod = dfagrup.groupby(['Producto', 'OP-D']).agg({
+    top_10_prod = dfagrup.groupby(['Productos', 'OP-D']).agg({
         'Valor total OS': 'sum',
-        'OS-Cantidad': 'sum',
+        'CANTIDAD ENTREGA SATELITE': 'sum',
         'Cliente': lambda x: ', '.join(x.unique()),
-        'OS-Proveedor': lambda x: ', '.join(x.unique())
+        'TALLER SERVICIO': lambda x: ', '.join(x.unique())
     }).reset_index()
 
-    filtro = top_10_prod.sort_values(by='Valor total OS', ascending=False).head(15)
+    filtro = top_10_prod.sort_values(by='Valor total OS', ascending=False)
 
-    filtro['Producto_OP'] = filtro['Producto'] + ' | OP ' + filtro['OP-D'].astype(str)
+    filtro['Producto_OP'] = filtro['Productos'] + ' | OP ' + filtro['OP-D'].astype(str)
 
     figbarrr = px.bar(
         filtro, 
         x='Producto_OP', 
         y='Valor total OS',
-        color='Producto',
+        color='Productos',
         category_orders={"Producto_OP": filtro['Producto_OP'].tolist()},
         hover_data={
-            'OS-Proveedor': True,
+            'TALLER SERVICIO': True,
             'Cliente': True,
             'OP-D': True,
-            'OS-Cantidad': True,
+            'CANTIDAD ENTREGA SATELITE': True,
             'Producto_OP': False,  # para no repetirlo
-            'Producto': False      # opcional
+            'Productos': False      # opcional
         }
     )
 
@@ -958,6 +1113,449 @@ def actualizarr(categoria, servicio, start_date, end_date):
     )
     
     return figbarrr
+
+# CLIENTES A LOS QUE MÁS SE LES FABRICA:
+
+dcc.DatePickerRange(
+    start_date=df_costos_fechacom["Fecha"].min(),
+    end_date=df_costos_fechacom["Fecha"].max(),
+    display_format="YYYY-MM-DD",
+    id="filtro-fecha-cliente"
+),
+
+dcc.Graph(id="grafico-cliente_vol")
+@app.callback(
+    Output("grafico-cliente_vol", "figure"),
+    Input("filtro-fecha-cliente", "start_date"),
+    Input("filtro-fecha-cliente", "end_date")
+)
+
+def actualizarr(start_date, end_date):
+    
+    if start_date is None or end_date is None:
+        raise PreventUpdate
+    
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+           
+    df_filtrado_cli = df_costos_fechacom.copy()
+
+    df_ops_unicass = df_filtrado_cli.groupby(['Cliente', 'Num-OP']).agg({
+        'Total Precio OP': 'mean', # Sacamos solo el promedio ya que el mismo valor totaal de la op se repite en todas las filas que tienen la misma op
+        'OS-Cantidad': 'sum',
+        'Valor total OS': 'sum'
+    }).reset_index()
+
+    # hacemos la agrupación final para el gráfico
+    df_pareto_vol = df_ops_unicass.groupby('Cliente').agg({
+        'Total Precio OP': 'sum',
+        'OS-Cantidad': 'sum',
+        'Valor total OS': 'sum'
+    }).reset_index()
+
+    # Ordenamos la cantidad de mayor a menor
+    df_pareto_vol = df_pareto_vol.sort_values(by='OS-Cantidad', ascending=False)
+
+    # Cálculo de acumulados sobre el VOLUMEN de producción
+    total_prendas = df_pareto_vol['OS-Cantidad'].sum()
+    df_pareto_vol['Porcentaje'] = (df_pareto_vol['OS-Cantidad'] / total_prendas) * 100
+    df_pareto_vol['Acumulado'] = df_pareto_vol['Porcentaje'].cumsum()
+
+    fig_volumen = go.Figure()
+
+    # Barras de la cantidad de pedidos por cliente
+
+    fig_volumen.add_trace(go.Bar(
+        x=df_pareto_vol['Cliente'],
+        y=df_pareto_vol['OS-Cantidad'],
+        name='Volumen de Producción (Prendas)',
+        marker_color="#632E8B", 
+        # Pasamos datos extra al hover/etiqueta
+        customdata=df_pareto_vol[['Valor total OS','Total Precio OP']], 
+        hovertemplate=( 
+            "<b>Cliente: %{x}</b><br>" +
+            "Cantidad de Prendas: %{y:,.0f}<br><br>" +
+            "Valor total de OS: %{customdata[0]:$,.0f}<br>" +
+            "Valor total de OP: %{customdata[1]:$,.0f}<br>"
+            "<extra></extra>"
+        )
+    ))
+
+    # Línea del % acumulado
+    fig_volumen.add_trace(go.Scatter(
+        x=df_pareto_vol['Cliente'],
+        y=df_pareto_vol['Acumulado'],
+        name='% Acumulado Volumen',
+        yaxis='y2',
+        line=dict(color="#F561F0", width=3),
+        hovertemplate="Impacto Acumulado: %{y:.2f}%<extra></extra>"
+    ))
+
+    # 6. Layout
+    fig_volumen.update_layout(
+        xaxis=dict(title='Cliente', tickangle=-45),
+        yaxis=dict(title='Cantidad de Prendas Producidas'),
+        yaxis2=dict(title='Porcentaje Acumulado (%)', overlaying='y', side='right', range=[0, 105]),
+        hovermode='x unified',
+        template='plotly_white',
+        height=700
+    )
+
+    # Línea del 80% 
+    fig_volumen.add_shape(type="line", x0=0, x1=1, y0=80, y1=80, yref='y2', xref='paper',
+                       line=dict(color="black", width=2, dash="dot"))
+
+    fig_volumen.update_layout(
+        # 1. Fondo transparente
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    
+        # 2. Tipografía Times New Roman
+        font=dict(
+            family="Times New Roman, Times, serif",
+            size=10,
+            color="#333333" # Color de letra gris muy oscuro (casi negro)
+        ),
+    
+        # Ajuste opcional de márgenes para que la letra no se corte
+        margin=dict(t=80, b=50, l=50, r=50)
+    )
+
+    # 3. Líneas de cuadrícula más oscuras
+    fig_volumen.update_xaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', # Un gris más marcado (puedes usar 'gray' si lo quieres aún más oscuro)
+        linecolor='gray',    # Línea del eje principal en negro
+        zeroline=True,        # Mantener la línea del cero...
+        zerolinecolor='#d3d3d3', # ...pero usar un gris mucho más suave (LightGrey)
+        zerolinewidth=1
+    )
+
+    fig_volumen.update_yaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', 
+        linecolor='gray'
+    )
+    return fig_volumen
+
+# CLIENTES CON LOS QUE MÁS SE FACTURA:
+
+dcc.DatePickerRange(
+    start_date=df_costos_fechacom["Fecha"].min(),
+    end_date=df_costos_fechacom["Fecha"].max(),
+    display_format="YYYY-MM-DD",
+    id="filtro-fecha-valc"
+),
+
+dcc.Graph(id="grafico-cliente_valc")
+@app.callback(
+    Output("grafico-cliente_valc", "figure"),
+    Input("filtro-fecha-valc", "start_date"),
+    Input("filtro-fecha-valc", "end_date")
+)
+
+def actualizarr(start_date, end_date):
+    
+    if start_date is None or end_date is None:
+        raise PreventUpdate
+    
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+           
+    df_filtrado_cliente = df_costos_fechacom.copy()
+    
+    df_ops_unicas = df_filtrado_cliente.groupby(['Cliente', 'Num-OP']).agg({
+        'Total Precio OP': 'mean', 
+        'OS-Cantidad': 'sum',
+        'Valor total OS': 'sum'
+    }).reset_index()
+
+    # Agrupar por CLIENTE para el Pareto
+    df_pareto_valor = df_ops_unicas.groupby('Cliente').agg({
+        'Total Precio OP': 'sum',   # Ahora sí sumamos los valores únicos de sus OPs
+        'OS-Cantidad': 'sum',
+        'Valor total OS': 'sum'
+    }).reset_index()
+
+    # Ordenar por VALOR DE OP 
+    df_pareto_valor = df_pareto_valor.sort_values(by='Total Precio OP', ascending=False)
+
+
+    total_valor_general = df_pareto_valor['Total Precio OP'].sum()
+    df_pareto_valor['Porcentaje'] = (df_pareto_valor['Total Precio OP'] / total_valor_general) * 100
+    df_pareto_valor['Acumulado'] = df_pareto_valor['Porcentaje'].cumsum()
+
+
+    fig_valor = go.Figure()
+
+    # Barras: Valor Total OP por cliente
+    fig_valor.add_trace(go.Bar(
+        x=df_pareto_valor['Cliente'],
+        y=df_pareto_valor['Total Precio OP'],
+        name='Valor Total OP ($)',
+        marker_color='#632E8B', 
+        customdata=df_pareto_valor[['Valor total OS', 'OS-Cantidad']], 
+        hovertemplate=(
+            "<b>Cliente: %{x}</b><br>" +
+            "Valor Total OP: %{y:$,.0f}<br>" +
+            "Valor Total OS: %{customdata[0]:$,.0f}<br>" +
+            "Total Prendas: %{customdata[1]:,.0f}<br>" + # <--- Cambio aquí: :.0f elimina decimales
+            "<extra></extra>"
+        )
+    ))
+
+    # Línea: % Acumulado
+    fig_valor.add_trace(go.Scatter(
+        x=df_pareto_valor['Cliente'],
+        y=df_pareto_valor['Acumulado'],
+        name='% Acumulado',
+        yaxis='y2',
+        line=dict(color="#F561F0", width=3),
+        hovertemplate="Impacto Acumulado: %{y:.2f}%<extra></extra>"
+    ))
+
+    fig_valor.update_layout(
+        xaxis=dict(title='Cliente', tickangle=-45),
+        yaxis=dict(title='Valor Total OP ($)'),
+        yaxis2=dict(title='Porcentaje Acumulado (%)', overlaying='y', side='right', range=[0, 105]),
+        hovermode='x unified',
+        template='plotly_white',
+        height=700
+    )
+
+    # Línea del 80%
+    fig_valor.add_shape(type="line", x0=0, x1=1, y0=80, y1=80, yref='y2', xref='paper',
+                       line=dict(color="black", width=2, dash="dot"))
+
+    fig_valor.update_layout(
+    # 1. Fondo transparente
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    
+    # 2. Tipografía Times New Roman
+    font=dict(
+        family="Times New Roman, Times, serif",
+        size=10,
+        color="#333333" # Color de letra gris muy oscuro (casi negro)
+    ),
+    
+    # Ajuste opcional de márgenes para que la letra no se corte
+    margin=dict(t=80, b=50, l=50, r=50)
+    )
+
+    # 3. Líneas de cuadrícula más oscuras
+    fig_valor.update_xaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', # Un gris más marcado (puedes usar 'gray' si lo quieres aún más oscuro)
+        linecolor='gray',    # Línea del eje principal en negro
+        zeroline=True,        # Mantener la línea del cero...
+        zerolinecolor='#d3d3d3', # ...pero usar un gris mucho más suave (LightGrey)
+        zerolinewidth=1
+    )
+
+    fig_valor.update_yaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', 
+        linecolor='gray'
+    )
+    return fig_valor
+
+# HISTÓRICO DE PAGADO EN SERVICIOS
+dcc.Dropdown(
+    options=[
+        {"label": p, "value":p}
+        for p in df_costos_fechacom["Proceso Producción"].unique()],
+    multi=True,
+    placeholder="Seleccione el servicio",
+    id="filtro-servicio-hist"
+),
+
+dcc.RangeSlider(
+    min=0,
+    max=len(fechas_unicas) -1,
+    value=[0, len(fechas_unicas) - 1],
+    marks=None,
+    id="filtro-fecha-hist"
+),
+
+dcc.Graph(id="grafico-hist")
+@app.callback(
+    Output("grafico-hist", "figure"),
+    Input("filtro-servicio-hist", "value"),
+    Input("filtro-fecha-hist", "value")
+)
+def actualizar(servicio, rango_fechas):
+
+    df_filtrado_hist = df_costos_fechacom.copy()
+
+
+    # Filtro fecha
+    inicio= fechas_unicas[rango_fechas[0]]
+    fin = fechas_unicas[rango_fechas[1]]
+    
+    df_filtrado_hist = df_filtrado_hist[
+        (df_filtrado_hist["Año-Mes"] >= inicio) &
+        (df_filtrado_hist["Año-Mes"] <= fin)
+    ]
+    
+    if not servicio:
+        # Agrupamos todo en una sola línea llamada "Total General"
+        dfagrupadohisto = df_filtrado_hist.groupby(["Año-Mes", "Proceso Producción", "OP-D"]).agg({
+            'Valor total OS' : 'mean'
+        }).reset_index()
+        
+        dfagrupadohist = dfagrupadohisto.groupby(["Año-Mes"]).agg({
+            'Valor total OS': 'sum'
+        }).reset_index()
+        
+        color_param = None  # No hay distinción de colores por proceso
+        dfagrupadohist["Proceso Producción"] = "Total General" # Para que el hover no falle
+    
+    else:
+        # Si hay filtros, aplicamos el filtro de servicio
+        df_filtrado_hist = df_filtrado_hist[df_filtrado_hist["Proceso Producción"].isin(servicio)]
+        
+        # Agrupamos por proceso para ver líneas individuales
+        dfagrupadohisto = df_filtrado_hist.groupby(["Año-Mes", "Proceso Producción", "OP-D"]).agg({
+            'Valor total OS' : 'mean'
+        }).reset_index()
+        
+        dfagrupadohist = dfagrupadohisto.groupby(["Año-Mes", "Proceso Producción"]).agg({
+            'Valor total OS' : 'sum'
+        }).reset_index()
+        
+        color_param = "Proceso Producción"
+
+    # 3. Gráfico
+    fighist = px.line(
+        dfagrupadohist,
+        x="Año-Mes",
+        y="Valor total OS",
+        color=color_param, # Será None si no hay filtro, o "Proceso..." si lo hay
+        markers=True,
+        title="Comparativo histórico de costos en servicios",
+        # Usamos Libre Franklin como hablamos antes
+        template="plotly_white" 
+    )
+    
+    
+    fighist.update_layout(
+        # 1. Fondo transparente
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    
+        font=dict(
+            family="Libre Franklin, sans-serif", # <--- Cambia esto
+            size=11,                             # Ajusta el tamaño si es necesario
+            color="#482b63" 
+        ),
+        # Ajuste opcional de márgenes para que la letra no se corte
+        margin=dict(t=80, b=50, l=50, r=50)
+    )
+
+    # 3. Líneas de cuadrícula más oscuras
+    fighist.update_xaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', # Un gris más marcado (puedes usar 'gray' si lo quieres aún más oscuro)
+        linecolor='gray',    # Línea del eje principal en negro
+        zeroline=True,        # Mantener la línea del cero...
+        zerolinecolor='#d3d3d3', # ...pero usar un gris mucho más suave (LightGrey)
+        zerolinewidth=1
+    )
+
+    fighist.update_yaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', 
+        linecolor='gray'
+    )
+    return fighist
+
+#HISTÓRICO DE FACTURADO EN TOTAL
+
+dcc.RangeSlider(
+    min=0,
+    max=len(fechas_unicas) -1,
+    value=[0, len(fechas_unicas) - 1],
+    marks=None,
+    id="filtro-fecha-histo"
+),
+
+dcc.Graph(id="grafico-histo")
+@app.callback(
+    Output("grafico-histo", "figure"),
+    Input("filtro-fecha-histo", "value")
+)
+
+def actualizar( rango_fechas):
+
+    df_filtrado_histo = df_costos_fechacom.copy()
+
+    # Filtro fecha
+    inicio= fechas_unicas[rango_fechas[0]]
+    fin = fechas_unicas[rango_fechas[1]]
+    
+    df_filtrado_histo = df_filtrado_histo[
+        (df_filtrado_histo["Año-Mes"] >= inicio) &
+        (df_filtrado_histo["Año-Mes"] <= fin)
+    ]
+    
+    dfagrupadohisto = df_filtrado_histo.groupby(["Año-Mes",'Num-OP']).agg({
+            'Total Precio OP' : 'mean'
+    }).reset_index()
+        
+    dfagrupadohist = dfagrupadohisto.groupby(["Año-Mes"]).agg({
+            'Total Precio OP': 'sum'
+    }).reset_index()
+
+    # 3. Gráfico
+    fighisto = px.line(
+        dfagrupadohist,
+        x="Año-Mes",
+        y="Total Precio OP",
+        markers=True,
+        title="Comparativo histórico de facturado",
+        template="plotly_white" 
+    )
+    
+    
+    fighisto.update_layout(
+        # 1. Fondo transparente
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+    
+        font=dict(
+            family="Libre Franklin, sans-serif", # <--- Cambia esto
+            size=11,                             # Ajusta el tamaño si es necesario
+            color="#482b63" 
+        ),
+        # Ajuste opcional de márgenes para que la letra no se corte
+        margin=dict(t=80, b=50, l=50, r=50)
+    )
+
+    # 3. Líneas de cuadrícula más oscuras
+    fighisto.update_xaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', # Un gris más marcado (puedes usar 'gray' si lo quieres aún más oscuro)
+        linecolor='gray',    # Línea del eje principal en negro
+        zeroline=True,        # Mantener la línea del cero...
+        zerolinecolor='#d3d3d3', # ...pero usar un gris mucho más suave (LightGrey)
+        zerolinewidth=1
+    )
+
+    fighisto.update_yaxes(
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#bdbdbd', 
+        linecolor='gray'
+    )
+    return fighisto
 
 app.layout = html.Div([
     # páginas
@@ -1393,11 +1991,26 @@ app.layout = html.Div([
                     end_date=df_costos_fechacom["Fecha"].max(),
                     display_format="YYYY-MM-DD",
                     id="filtro-fecha-sobreprecio"
+                ), 
+                dcc.Dropdown(
+                    options=[{"label": p, "value": p} 
+                        for p in df_costos_fechacom["Proceso Producción"].unique()],
+                    multi=True,
+                    placeholder="Selecciona el proceso de produccion",
+                    id="filtro-servicio-sobreprecio"
+                ),
+
+                dcc.Dropdown(
+                options=[{"label": c, "value": c} 
+                    for c in df_costos_fechacom["Categoría"].unique()],
+                multi=True,
+                placeholder="Selecciona categoría",
+                id="filtro-categoria-sobreprecio"
                 )], style={"margin-bottom": "20px"}),
 
                 dcc.Graph(id="grafico-sobreprecio-prov"),
 
-                html.P("En este gráfico utilizamos el mismo grupo de datos (Servicio, Cliente y Categoría). Dentro de cada grupo, comparamos el valor de las órdenes de satélite entre proveedores, tomando como referencia a los que tienen el menor costo. A partir de esto, calculamos la diferencia de precio frente a los demás proveedores, con el fin de identificar a cuáles les estamos pagando más de lo que podríamos pagar con opciones más económicas.")
+                html.P("En este gráfico utilizamos el mismo grupo de datos (Servicio, Cliente y producto). Dentro de cada grupo, comparamos el valor de las órdenes de satélite entre proveedores, tomando como referencia a los que tienen el menor costo. A partir de esto, calculamos la diferencia de precio frente a los demás proveedores, con el fin de identificar a cuáles les estamos pagando más de lo que podríamos pagar con opciones más económicas.")
             ], className="card")
         ], className="row"),
         
@@ -1419,9 +2032,42 @@ app.layout = html.Div([
         
         html.Div([
             html.Div([
-                html.H3("¿EN QUÉ PRENDAS ESPECÍFICAS PODEMOS REDUCIR COSTOS?"),
-                dcc.Graph(figure=fig_cat_ahorro),
-                html.P("Con este gráfico análizamos los tipos de prenda en los que normalmente gastamos más en el proceso de producción de lo que podríamos gastar realmente")        
+                html.H3("PRENDAS CON MAYOR COSTO EN LOS PROCESOS DE PRODUCCIÓN"),                
+                html.Div([
+                dcc.Dropdown(
+                    options=[{"label": c, "value": c} 
+                        for c in df_costos_fechacom["Categoría"].unique()],
+                    multi=True,
+                    placeholder="Selecciona categoría",
+                    id="filtro-categoria-prod"
+                ),
+                
+                dcc.Dropdown(
+                    options=[{"label": c, "value": c} 
+                        for c in df_costos_fechacom["Cliente"].unique()],
+                    multi=True,
+                    placeholder="Selecciona cliente",
+                    id="filtro-cliente-prod"
+                ),
+                
+                dcc.Dropdown(
+                    options=[{"label": p, "value": p} 
+                        for p in df_costos_fechacom["Proceso Producción"].unique()],
+                    multi=True,
+                    placeholder="Selecciona el proceso de produccion",
+                    id="filtro-servicio-prod"
+                ),
+                
+                dcc.DatePickerRange(
+                    start_date=df_costos_fechacom["Fecha"].min(),
+                    end_date=df_costos_fechacom["Fecha"].max(),
+                    display_format="YYYY-MM-DD",
+                    id="filtro-fecha-prod"
+                )], style={"margin-bottom": "20px"}),
+
+                dcc.Graph(id="grafico-producto"),
+                
+                html.P("...")
             ], className="card")
         ], className="row"),
         
@@ -1458,6 +2104,22 @@ app.layout = html.Div([
                 )], style={"margin-bottom": "20px"}),
 
                 html.P("En este gráfico encontramos la evolución a través del tiempo de los costos de cada categoría utilizada por cada cliente")
+            ], className="card")
+        ], className="row"),
+        
+        html.Div([
+            html.Div([
+                html.H3("¿EN QUÉ PRENDAS ESPECÍFICAS PODEMOS REDUCIR COSTOS?"),                
+                html.Div([
+                dcc.DatePickerRange(
+                    start_date=df_costos_fechacom["Fecha"].min(),
+                    end_date=df_costos_fechacom["Fecha"].max(),
+                    display_format="YYYY-MM-DD",
+                    id="filtro-fecha-sobreprecio-prenda"
+                )], style={"margin-bottom": "20px"}),
+                
+                dcc.Graph(id="grafico-sobreprecio-prend"),
+                html.P("...")
             ], className="card")
         ], className="row"),
         
@@ -1505,57 +2167,96 @@ app.layout = html.Div([
                 html.P("Para este gráfico tenemos el promedio del costo pagado a cada proveedor en las diferentes categorías, filtramos por cliente ya que los precios pueden variar entre clientes")
             ], className="card")
         ], className="row"),
-        
+                
         html.Div([
             html.Div([
-                html.H3("PRENDAS CON MAYOR COSTO EN LOS PROCESOS DE PRODUCCIÓN"),                
+                html.H3("¿EN QUÉ CLIENTES SE CONCENTRA LA MAYOR CARGA OPERATIVA?"),                
                 html.Div([
-                dcc.Dropdown(
-                    options=[{"label": c, "value": c} 
-                        for c in df_costos_fechacom["Categoría"].unique()],
-                    multi=True,
-                    placeholder="Selecciona categoría",
-                    id="filtro-categoria-prod"
-                ),
-                
-                dcc.Dropdown(
-                    options=[{"label": p, "value": p} 
-                        for p in df_costos_fechacom["Proceso Producción"].unique()],
-                    multi=True,
-                    placeholder="Selecciona el proceso de produccion",
-                    id="filtro-servicio-prod"
-                ),
-                
                 dcc.DatePickerRange(
                     start_date=df_costos_fechacom["Fecha"].min(),
                     end_date=df_costos_fechacom["Fecha"].max(),
                     display_format="YYYY-MM-DD",
-                    id="filtro-fecha-prod"
+                    id="filtro-fecha-cliente"
+                )], style={"margin-bottom": "20px"}),
+                
+                dcc.Graph(id="grafico-cliente_vol"),
+                html.P("...")
+            ], className="card")
+        ], className="row"),
+        
+        html.Div([
+            html.Div([
+                html.H3("¿QUÉ CLIENTES REPRESENTAN EL MAYOR INGRESO PRESUPUESTADO A LA COMPAÑÍA?"),                
+                html.Div([
+                dcc.DatePickerRange(
+                    start_date=df_costos_fechacom["Fecha"].min(),
+                    end_date=df_costos_fechacom["Fecha"].max(),
+                    display_format="YYYY-MM-DD",
+                    id="filtro-fecha-valc"
+                )], style={"margin-bottom": "20px"}),
+                
+                dcc.Graph(id="grafico-cliente_valc"),
+                html.P("...")
+            ], className="card")
+        ], className="row"),
+        
+        html.Div([
+            html.Div([
+                html.H3("HISTÓRICO DE TOTAL PAGADO EN OS"),                
+                html.Div([
+                dcc.Dropdown(
+                    options=[
+                        {"label": p, "value":p}
+                        for p in df_costos_fechacom["Proceso Producción"].unique()],
+                    multi=True,
+                    placeholder="Seleccione el servicio",
+                    id="filtro-servicio-hist"
+                ),
+
+                dcc.RangeSlider(
+                    min=0,
+                    max=len(fechas_unicas) -1,
+                    value=[0, len(fechas_unicas) - 1],
+                    marks=None,
+                    id="filtro-fecha-hist"
                 )], style={"margin-bottom": "20px"}),
 
-                dcc.Graph(id="grafico-producto"),
+                dcc.Graph(id="grafico-hist"),
                 
                 html.P("...")
             ], className="card")
         ], className="row"),
         
-        
         html.Div([
             html.Div([
-                html.H3("¿EN QUÉ CLIENTES SE CONCENTRA LA MAYOR CARGA OPERATIVA?"),
-                dcc.Graph(figure=fig_volumen),
-                html.P("Con este gráfico tipo pareto analizamos el impacto que tiene cada cliente en la cantidad de prendas que solicita, es decir, los clientes a los cuales se está yendo el mayor esfuerzo de la mano de obra")        
+                html.H3("HISTÓRICO DE TOTAL FACTURADO EN OP's"),                
+                html.Div([
+                dcc.RangeSlider(
+                    min=0,
+                    max=len(fechas_unicas) -1,
+                    value=[0, len(fechas_unicas) - 1],
+                    marks=None,
+                    id="filtro-fecha-histo"
+                )], style={"margin-bottom": "20px"}),
+
+                dcc.Graph(id="grafico-histo"),
+                
+                html.P("...")
             ], className="card")
         ], className="row"),
         
-        html.Div([
-            html.Div([
-                html.H3("¿QUÉ CLIENTES REPRESENTAN EL MAYOR INGRESO PRESUPUESTADO A LA COMPAÑÍA?"),
-                dcc.Graph(figure=fig_valor),
-                html.P("Con este gráfico tipo pareto analizamos los clientes en los que se concentra el mayor ingreso económico en la compañía")        
-            ], className="card")
-        ], className="row"),
+        ]),
         
+        # PAGINA 4
+        dcc.Tab(label="ANÁLISIS DE INSUMOS Y MP", 
+                className="custom-tab",
+                selected_className="custom-tab--selected",
+                children=[
+                    
+        html.Div([
+            html.Div("ANÁLISIS DE MATERIAS PRIMAS E INSUMOS", className="title")
+        ], className="header"),            
+                    
         ])
     ]),
 ])
