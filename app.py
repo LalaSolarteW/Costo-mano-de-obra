@@ -464,8 +464,7 @@ def actualizar_vol_prov (servicio, start_date, end_date):
         df_filtrado_pro = df_filtrado_pro[df_filtrado_pro["Proceso Producción"].isin(servicio)]
     
     if df_filtrado_pro.empty:
-        return px.bar(title="No hay datos con los filtros seleccionados")
-                       
+        return px.bar(title="No hay datos con los filtros seleccionados")                     
     # Filtro fecha   
     df_filtrado_pro = df_filtrado_pro[
         (df_filtrado_pro["Fecha"] >= start_date) &
@@ -1925,7 +1924,7 @@ app.layout = html.Div([
         ]),
         
         # PÁGINA 3      
-        dcc.Tab(label="ANÁLISIS DE COSTOS", 
+        dcc.Tab(label="PROVEEDORES Y CLIENTES", 
                 className="custom-tab",
                 selected_className="custom-tab--selected",
                 children=[
